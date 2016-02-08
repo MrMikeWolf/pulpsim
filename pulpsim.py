@@ -55,7 +55,9 @@ def reaction_rates(C, x, T):
     :param C:
     :return: reaction rates
     """
-
+    
+    C[C<0] = 0    
+    
     CL, CC, CA, CS = C
     Nl, Nw = unflatx(x)
     # Get total moles
@@ -67,7 +69,8 @@ def reaction_rates(C, x, T):
         kr2 = 0.02
     else:
         kr2 = 0.02
-    return numpy.array([kr1*CL*CA,
+    
+    return numpy.array([kr1*(CL**0.1)*CA,
                         kr2*CC*CA])
 
 
