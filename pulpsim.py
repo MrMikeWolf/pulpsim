@@ -59,6 +59,10 @@ def reaction_rates(C, x, T):
     C[C<0] = 0    
     
     CL, CC, CA, CS = C
+
+    MM_L = 1
+    L = CL*MM_L*parameters['wood_volume']/parameters['wood_mass']
+    
     Nl, Nw = unflatx(x)
     # Get total moles
     mass_frac = Nw.sum(axis=1)*componentsMM/parameters['wood_mass']
@@ -69,9 +73,20 @@ def reaction_rates(C, x, T):
         kr2 = 0.02
     else:
         kr2 = 0.02
+
+    k1 = 36.2*T**0.5*numpy.exp(-4807.69/T)
+    print(k1)    
     
-    return numpy.array([kr1*(CL**0.1)*CA,
-                        kr2*CC*CA])
+    dLdt = k1*L
+    dCdt = (CA**0.11)*dLdt
+    dCAdt = -1*dLdt + 1*dCdt
+    
+    return numpy.array([dLdt,
+                        dCdt,
+                        dCAdt])    
+    
+#    return numpy.array([kr1*(CL)*CA,
+#                        kr2*CC*CA])
 
 
 def flatx(liquor, wood):
@@ -132,7 +147,8 @@ componentsMM = [1., 1., 1., 1.]
 Ncomponents = len(components)
 # stoicheometric matrix, reagents negative, products positive
 S = numpy.array([[-1, 0, 0, 0],
-                 [0, -1, 0, 0]]).T
+                 [0, -1, 0, 0],
+                 [0,  0,-1, 0]]).T
 t_end = 100
 
 K = numpy.array([0., 0., 0.1, 0])  # diffusion constant (mol/(m^2.s))
