@@ -55,8 +55,16 @@ def reaction_rates(C, x, T):
     :param C:
     :return: reaction rates
     """
-
-    CL, CC, CA, CS = C
+    
+    # L-Lignin, C-Cellulose, G-Glucomannan, X-Xylan
+    CL, CC, CG, CX = C
+    
+    C[C<0] = 0
+    
+    # Constant [OH] and [HS] concentration
+    OH = .1    
+    HS = .1
+    
     Nl, Nw = unflatx(x)
     # Get total moles
     mass_frac = Nw.sum(axis=1)*componentsMM/parameters['wood_mass']
@@ -67,8 +75,16 @@ def reaction_rates(C, x, T):
         kr2 = 0.02
     else:
         kr2 = 0.02
-    return numpy.array([kr1*CL*CA,
-                        kr2*CC*CA])
+        
+    dCLdt = 0.1*(OH**0)*(HS**0.6)*CL
+    dCCdt = 0.01*((OH**0.1)*(HS**0))*CC
+    dCGdt = 0.01*((OH**0.1)*(HS**0))*CG
+    dCXdt = 0.01*((OH**0.1)*(HS**0))*CX
+        
+    return numpy.array([dCLdt,
+                        dCCdt,
+                        dCGdt,
+                        dCXdt])
 
 
 def flatx(liquor, wood):
@@ -123,13 +139,15 @@ parameter_filename = os.path.join(datadir, 'parameters.csv')
 # Read parameter file
 parameters = reader(parameter_filename)
 
-components = ['Lignin', 'Carbohydrate', 'Alkali', 'Sulfur']
+components = ['Lignin', 'Cellulose', 'Glucomannan', 'Xylan']
 # Molar mass
 componentsMM = [1., 1., 1., 1.]
 Ncomponents = len(components)
 # stoicheometric matrix, reagents negative, products positive
 S = numpy.array([[-1, 0, 0, 0],
-                 [0, -1, 0, 0]]).T
+                 [0, -1, 0, 0],
+                 [0,  0,-1, 0],
+                 [0,  0, 0,-1]]).T
 t_end = 100
 
 K = numpy.array([0., 0., 0.1, 0])  # diffusion constant (mol/(m^2.s))
@@ -143,12 +161,11 @@ dz = 1./parameters['Ncompartments']
 wood_compartment_volume = parameters['wood_volume']/parameters['Ncompartments']
 
 # Initial conditions
-Nliq0 = numpy.array([0., 0., 1., 0.])
+Nliq0 = numpy.array([0., 0., 0., 0.])
 
 Nwood0 = numpy.zeros((Ncomponents, parameters['Ncompartments']))
 # Lignin & Carbo content
-Nwood0[0, :] = 0.01
-Nwood0[1, :] = 0.01
+Nwood0[:, :] = 0.01
 
 x0 = flatx(Nliq0, Nwood0)
 
