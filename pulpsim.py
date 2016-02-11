@@ -59,9 +59,6 @@ def reaction_rates(C, x, T):
     C[C<0] = 0    
     
     CL, CC, CA, CS = C
-
-    MM_L = 1
-    L = CL*MM_L*parameters['wood_volume']/parameters['wood_mass']
     
     Nl, Nw = unflatx(x)
     # Get total moles
@@ -76,12 +73,12 @@ def reaction_rates(C, x, T):
 
     k1 = 36.2*T**0.5*numpy.exp(-4807.69/T)  
     
-    dLdt = k1*L
-    dCdt = 2.53*(CA**0.11)*dLdt
-    dCAdt = (-4.78e-3*dLdt + 1.81e-2*dCdt)*1/1
+    dCLdt = k1*CL
+    dCCdt = 2.53*(CA**0.11)*dCLdt
+    dCAdt = (-4.78e-3*dCLdt + 1.81e-2*dCCdt)*1/1
     
-    return numpy.array([dLdt,
-                        dCdt,
+    return numpy.array([dCLdt,
+                        dCCdt,
                         dCAdt])    
     
 #    return numpy.array([kr1*(CL)*CA,
@@ -166,12 +163,13 @@ dz = 1./parameters['Ncompartments']
 wood_compartment_volume = parameters['wood_volume']/parameters['Ncompartments']
 
 # Initial conditions
-Nliq0 = numpy.array([0., 0., 1., 0.])
+Nliq0 = numpy.array([0., 0., 1., 1.])
 
 Nwood0 = numpy.zeros((Ncomponents, parameters['Ncompartments']))
 # Lignin & Carbo content
 Nwood0[0, :] = 0.01
 Nwood0[1, :] = 0.01
+Nwood0[3, :] = 0.1
 
 x0 = flatx(Nliq0, Nwood0)
 
