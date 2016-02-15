@@ -49,6 +49,17 @@ def reader(filename):
         dirc[name] = values[(names.index(name))]
     return dirc
 
+def kG(ci,T,A=0,B=0):
+    """ Calculate the rate constant for the Gustafson model given the parameters A,B,ci
+    ki = ci*exp(A-B/T)
+    
+    :param kG
+    :return rate constant
+    default values for A,B = 0    
+    """
+    
+    return ci*numpy.exp(A-B/T)
+
 
 def reaction_rates(C, x, T):
     """ Calculate reaction rates for a column of component concentrations
@@ -58,31 +69,33 @@ def reaction_rates(C, x, T):
     
     C[C<0] = 0    
     
-    CL, CC, CA, CS = C
+    L, C, CA, CS = C
+    # The rates for lignin and carbohydrates given in terms of mass fraction
     
-    Nl, Nw = unflatx(x)
-    # Get total moles
-    mass_frac = Nw.sum(axis=1)*componentsMM/parameters['wood_mass']
+    # The sulfur concentration remains constant
+    CS = 1.2
 
-    if mass_frac[2] >= parameters['phase_limit_1']:
-        kr2 = 0.02
-    elif mass_frac[2] >= parameters['phase_limit_2']:
-        kr2 = 0.02
+    if L >= .25:
+                   
+        dLdt = (36.2*430**0.5*numpy.exp(-4807.69/430))*L
+        dCdt = 2.53*(CA**0.11)*dLdt
+        dCAdt = (-4.78e-3*dLdt + 1.81e-2*dCdt)*1/1        
+              
+    elif L >= .025:
+        
+        dLdt = (numpy.exp(35.19 - 17200/T))*CA*L + (numpy.exp(29.23 - 14400/T))*(CA**0.5)*(CS**0.4)
+        dCdt = 0.47*dLdt
+        dCAdt = (-4.78e-3*dLdt + 1.81e-2*dCdt)*1/1
+        
     else:
-        kr2 = 0.02
 
-    k1 = 36.2*T**0.5*numpy.exp(-4807.69/T)  
+        dLdt = (numpy.exp(19.64 - 10804/T))*(CA**0.7)*L
+        dCdt = 2.19*dLdt
+        dCAdt = (-4.78e-3*dLdt + 1.81e-2*dCdt)*1/1
     
-    dCLdt = k1*CL
-    dCCdt = 2.53*(CA**0.11)*dCLdt
-    dCAdt = (-4.78e-3*dCLdt + 1.81e-2*dCCdt)*1/1
-    
-    return numpy.array([dCLdt,
-                        dCCdt,
+    return numpy.array([dLdt,
+                        dCdt,
                         dCAdt])    
-    
-#    return numpy.array([kr1*(CL)*CA,
-#                        kr2*CC*CA])
 
 
 def flatx(liquor, wood):
@@ -117,7 +130,8 @@ def temp(t):
     """ Temperature function
     """
 
-    T = parameters['Ti'] + t * 0.1
+#    T = parameters['Ti'] + t * 0.1
+    T = 420 + t * 0.1
     return T
 
 # Read configuration file
@@ -145,7 +159,7 @@ Ncomponents = len(components)
 S = numpy.array([[-1, 0, 0, 0],
                  [0, -1, 0, 0],
                  [0,  0,-1, 0]]).T
-t_end = 100
+t_end = 80
 
 K = numpy.array([0., 0., 0.1, 0])  # diffusion constant (mol/(m^2.s))
 # FIXME: K and D should be specified in a similar way
@@ -163,13 +177,13 @@ dz = 1./parameters['Ncompartments']
 wood_compartment_volume = parameters['wood_volume']/parameters['Ncompartments']
 
 # Initial conditions
-Nliq0 = numpy.array([0., 0., 1., 1.])
+Nliq0 = numpy.array([0., 0., 1.56, 0.])
 
 Nwood0 = numpy.zeros((Ncomponents, parameters['Ncompartments']))
 # Lignin & Carbo content
-Nwood0[0, :] = 0.01
-Nwood0[1, :] = 0.01
-Nwood0[3, :] = 0.1
+Nwood0[0, :] = 0.0273 # Lignin initial mass fraction
+Nwood0[1, :] = 0.0677 # Carbohydrate initial mass fraction
+
 
 x0 = flatx(Nliq0, Nwood0)
 
@@ -179,7 +193,7 @@ def dxdt(x, t):
     T = temp(t)
 
     # unpack variables
-    cl, cw = concentrations(x)
+    cl, cw = unflatx(x)
 
     # All transfers are calculated in moles/second
 
@@ -197,20 +211,21 @@ def dxdt(x, t):
     # The last compartment sees no outgoing diffusion due to symmetry
     # FIXME: This calculates gradients for both dimensions
     _, gradcwz = numpy.gradient(cw, dz)
-    diffusion = -parameters['A']*D(T)*gradcwz
+    diffusion = -D(T)*gradcwz
     diffusion[:, -1] = 0
 
     # reaction rates in wood
     r = numpy.apply_along_axis(reaction_rates, 0, cw, x, T)
     # change in moles due to reaction
-    reaction = S.dot(r)*wood_compartment_volume
-
+    reaction = S.dot(r)
+    
     # mass balance for liquor:
     dNliquordt = -transfer_rate
     # in wood, we change due to diffusion (left and right) and reaction
-    dNwooddt = reaction - diffusion + numpy.roll(diffusion, 1)
+    dNwooddt = reaction #- diffusion + numpy.roll(diffusion, 1)
     # plus the extra flow from liquor
     dNwooddt[:, 0] += transfer_rate
+    
 
     return flatx(dNliquordt, dNwooddt)
 
@@ -227,24 +242,27 @@ xs, info = scipy.integrate.odeint(dxdt, x0, t, full_output=True)
 
 # Work out concentrations
 # TODO: This is probably inefficient
-cl, cw = map(numpy.array, zip(*map(concentrations, xs)))
+cl, cw = map(numpy.array, zip(*map(unflatx, xs)))
 
 # Time at end of run
 print ('Simulation run time: ', time.time() - start_time, 'sec')
 # Concentrations
 ax = None
 cm = plt.get_cmap('cubehelix')
-for i, component in enumerate(components):
-    ax = plt.subplot(Ncomponents + 1, 1, i+1, sharex=ax)
-    plt.setp(ax.get_xticklabels(), visible=False)
-    plt.pcolormesh(t, zl, numpy.atleast_2d(cl[:, i]), cmap=cm)
-    plt.pcolormesh(t, z, cw[:, i, :].T, cmap=cm)
-    plt.ylabel('[{}]'.format(component))
+#for i, component in enumerate(components):
+#    ax = plt.subplot(Ncomponents + 1, 1, i+1, sharex=ax)
+#    plt.setp(ax.get_xticklabels(), visible=False)
+#    plt.pcolormesh(t, zl, numpy.atleast_2d(cl[:, i]), cmap=cm)
+#    plt.pcolormesh(t, z, cw[:, i, :].T, cmap=cm)
+#    plt.ylabel('[{}]'.format(component))
+#
+## Check that we aren't creating or destroying mass
+#plt.subplot(Ncomponents+1, 1, Ncomponents+1, sharex=ax)
+#plt.plot(t, [totalmass(x) for x in xs])
+#plt.ylabel('Total moles')
+#plt.ylim(ymin=0)
+#plt.subplots_adjust(hspace=0.2)
+#plt.show()
 
-# Check that we aren't creating or destroying mass
-plt.subplot(Ncomponents+1, 1, Ncomponents+1, sharex=ax)
-plt.plot(t, [totalmass(x) for x in xs])
-plt.ylabel('Total moles')
-plt.ylim(ymin=0)
-plt.subplots_adjust(hspace=0)
+plt.plot(t,cw[:,0,:])
 plt.show()
