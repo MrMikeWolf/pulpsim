@@ -72,6 +72,7 @@ def reaction_rates(C, x, T):
     
     C[C<0] = 0    
     
+<<<<<<< HEAD
     L, C, CA, CS = C
     # The rates for lignin and carbohydrates given in terms of mass fraction
     
@@ -99,6 +100,37 @@ def reaction_rates(C, x, T):
     return numpy.array([dLdt,
                         dCdt,
                         dCAdt])    
+=======
+    CL, CC, CA, CS = C
+
+    MM_L = 1
+    L = CL*MM_L*parameters['wood_volume']/parameters['wood_mass']
+    
+    Nl, Nw = unflatx(x)
+    # Get total moles
+    mass_frac = Nw.sum(axis=1)*componentsMM/parameters['wood_mass']
+
+    if mass_frac[2] >= parameters['phase_limit_1']:
+        kr2 = 0.02
+    elif mass_frac[2] >= parameters['phase_limit_2']:
+        kr2 = 0.02
+    else:
+        kr2 = 0.02
+
+    k1 = 36.2*T**0.5*numpy.exp(-4807.69/T)
+    print(k1)    
+    
+    dLdt = k1*L
+    dCdt = (CA**0.11)*dLdt
+    dCAdt = -1*dLdt + 1*dCdt
+    
+    return numpy.array([dLdt,
+                        dCdt,
+                        dCAdt])    
+    
+#    return numpy.array([kr1*(CL)*CA,
+#                        kr2*CC*CA])
+>>>>>>> e577f8d79932ee88313887ea401b4f30941f79ab
 
 
 def flatx(liquor, wood):
