@@ -249,20 +249,17 @@ print ('Simulation run time: ', time.time() - start_time, 'sec')
 # Concentrations
 ax = None
 cm = plt.get_cmap('cubehelix')
-#for i, component in enumerate(components):
-#    ax = plt.subplot(Ncomponents + 1, 1, i+1, sharex=ax)
-#    plt.setp(ax.get_xticklabels(), visible=False)
-#    plt.pcolormesh(t, zl, numpy.atleast_2d(cl[:, i]), cmap=cm)
-#    plt.pcolormesh(t, z, cw[:, i, :].T, cmap=cm)
-#    plt.ylabel('[{}]'.format(component))
-#
-## Check that we aren't creating or destroying mass
-#plt.subplot(Ncomponents+1, 1, Ncomponents+1, sharex=ax)
-#plt.plot(t, [totalmass(x) for x in xs])
-#plt.ylabel('Total moles')
-#plt.ylim(ymin=0)
-#plt.subplots_adjust(hspace=0.2)
-#plt.show()
+for i, component in enumerate(components):
+    ax = plt.subplot(Ncomponents + 1, 1, i+1, sharex=ax)
+    plt.setp(ax.get_xticklabels(), visible=False)
+    plt.pcolormesh(t, zl, numpy.atleast_2d(cl[:, i]), cmap=cm)
+    plt.pcolormesh(t, z, cw[:, i, :].T, cmap=cm)
+    plt.ylabel('[{}]'.format(component))
 
-plt.plot(t,cw[:,0,:])
+# Check that we aren't creating or destroying mass
+plt.subplot(Ncomponents+1, 1, Ncomponents+1, sharex=ax)
+plt.plot(t, [totalmass(x) for x in xs])
+plt.ylabel('Total moles')
+plt.ylim(ymin=0)
+plt.subplots_adjust(hspace=0.2)
 plt.show()
