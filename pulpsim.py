@@ -69,7 +69,6 @@ def reaction_rates(C, x, T):
     :param C:
     :return: reaction rates
     """
-<<<<<<< HEAD
     
     C[C<0] = 0    
     
@@ -100,49 +99,6 @@ def reaction_rates(C, x, T):
     return numpy.array([dLdt,
                         dCdt,
                         dCAdt])    
-=======
-
-    CL, CC, CA, CS = C
-    Nl, Nw = unflatx(x)
-    # Get total moles
-    mass_frac = Nw.sum(axis=1)*componentsMM/parameters['wood_mass']
-    kappa_store.append(kappa(mass_frac[0], mass_frac[1]))
-
-    if mass_frac[0] >= parameters['phase_limit_1']:
-        kr1 = g*(36.2*T**0.5)*numpy.exp(-4807.69/T) + y*0.01
-        kr2 = g*2.53 + y*0.02
-        kr3 = -4.78e-3
-        kr4 = 1.81e-2
-        
-        r1 = kr1*CL
-        r2 = kr1*kr2*CL*CA**0.11   
-        r3 = (kr3*r1 + kr4*r2)*parameters['density']/parameters['porinf']
-        
-    elif mass_frac[0] >= parameters['phase_limit_2']:
-        kr11 = g*numpy.exp(35.19-17200/T) + y*0.01
-        kr12 = g*numpy.exp(29.23-14400/T) + y*0.01
-        kr2 = g*0.47 + y*0.02
-        kr3 = -4.78e-3
-        kr4 = 1.81e-2
-        
-        r1 = kr11*CA*CL + kr12*CL*(CA**0.5)*(CS**0.4)
-        r2 = kr2*r1
-        r3 = (kr3*r1 + kr4*r2)*parameters['density']/parameters['porinf']
-        
-    else:
-        kr1 = g*numpy.exp(19.64-10804/T) + y*0.01
-        kr2 = g*2.19 + y*0.02
-        kr3 = -4.78e-3
-        kr4 = 1.81e-2
-        
-        r1 = kr1*(CA**0.7)*CL
-        r2 = kr2*r1
-        r3 = (kr3*r1 + kr4*r2)*parameters['density']/parameters['porinf']
-        
-    return numpy.array([r1,
-                        r2,
-                        r3])
->>>>>>> origin
 
 
 def flatx(liquor, wood):
@@ -176,49 +132,10 @@ def concentrations(x):
 def temp(t):
     """ Temperature function
     """
-<<<<<<< HEAD
-
 #    T = parameters['Ti'] + t * 0.1
     T = 420 + t * 0.1
-=======
-    if t < parameters['toTmax']*60:
-        T = parameters['Ti'] + ((parameters['Tmax']-parameters['Ti'])/(parameters['toTmax']*60))*t
-    else:
-        T = parameters['Tmax']
-    temp_store.append(T)
->>>>>>> origin
     return T
 
-
-def gustaf_exp(c1, c2, T):
-    """ Calculate the Gustafsson exponential constants for the rates"""
-    k = numpy.exp(c1-(c2/T))
-    return k
-
-
-def fick_constant(T, cw):
-    """ Calculate Fick's Diffusivity constants in (m^2/s)
-    """
-    CL, CC, CA, CS = cw
-    D = numpy.zeros((Ncomponents, 1))
-    # Diffusion constant for alkali and sulfide respectively
-    D[Ncomponents-2] = 0.02
-
-    return D
-
-
-def mass_transfer_constant(T):
-    """ gives external mass transfer constant in (mol/(m^2.s))
-    """
-    k = numpy.zeros((Ncomponents,))
-    k[Ncomponents-2] = 0.1
-
-    return k
-
-
-def kappa(L, C):
-    knum = 500*((L*100)/(L*100 + C*100)) + 5
-    return knum
 
 # Read configuration file
 config = ConfigParser.ConfigParser()
@@ -237,13 +154,6 @@ parameter_filename = os.path.join(datadir, 'parameters.csv')
 # Read parameter file
 parameters = reader(parameter_filename)
 
-# Check what model is used
-if parameters['Andersson_model'] == 1:
-    y, g = 1, 0
-elif parameters['Gustafsson_model'] == 1:
-    y, g = 0, 1
-else:
-    print("No model was specified")
 
 components = ['Lignin', 'Carbohydrate', 'Alkali', 'Sulfur']
 # Molar mass
@@ -252,7 +162,6 @@ Ncomponents = len(components)
 # stoicheometric matrix, reagents negative, products positive
 S = numpy.array([[-1, 0, 0, 0],
                  [0, -1, 0, 0],
-<<<<<<< HEAD
                  [0,  0,-1, 0]]).T
 t_end = 80
 
@@ -265,23 +174,15 @@ def D(T):
     return numpy.array([[0.], [0.], [D_OH], [0.]])
 
 
-
-=======
-                 [0, 0, -1, 0]]).T
-t_end = 100
-
->>>>>>> origin
 total_volume = parameters['liquor_volume'] + parameters['wood_volume']
 
 dz = 1./parameters['Ncompartments']
 wood_compartment_volume = parameters['wood_volume']/parameters['Ncompartments']
 
 # Initial conditions
-<<<<<<< HEAD
 Nliq0 = numpy.array([0., 0., 1.56, 0.])
-=======
-Nliq0 = numpy.array([0., 0., 1., 1.])
->>>>>>> origin
+
+
 
 Nwood0 = numpy.zeros((Ncomponents, parameters['Ncompartments']))
 # Lignin & Carbo content
@@ -289,26 +190,12 @@ Nwood0[0, :] = 0.273 # Lignin initial mass fraction
 Nwood0[1, :] = 0.677 # Carbohydrate initial mass fraction
 
 
-x0 = flatx(Nliq0, Nwood0)
-temp_store = []
-kappa_store = []
-
-
 def dxdt(x, t):
     # assert numpy.all(x>=0)
     
     # unpack variables
     cl, cw = unflatx(x)
-<<<<<<< HEAD
-
-=======
     
-    # Update parameters
-    T = temp(t)
-    D = fick_constant(T, cw)
-    K = mass_transfer_constant(T)
-    
->>>>>>> origin
     # All transfers are calculated in moles/second
 
     # Diffusion between liquor and first wood compartment
@@ -324,6 +211,7 @@ def dxdt(x, t):
     # diffusion in wood (Fick's law)
     # The last compartment sees no outgoing diffusion due to symmetry
     # FIXME: This calculates gradients for both dimensions
+    T = temp(t)
     _, gradcwz = numpy.gradient(cw, dz)
     diffusion = -D(T)*gradcwz
     diffusion[:, -1] = 0
@@ -356,11 +244,10 @@ xs, info = scipy.integrate.odeint(dxdt, x0, t, full_output=True)
 
 # Work out concentrations
 # TODO: This is probably inefficient
-<<<<<<< HEAD
+
 cl, cw = map(numpy.array, zip(*map(unflatx, xs)))
-=======
 #cl, cw = map(numpy.array, zip(*map(concentrations, xs)))
->>>>>>> origin
+
 
 # Time at end of run
 print ('Simulation run time: ', time.time() - start_time, 'sec')
@@ -382,12 +269,3 @@ plt.ylim(ymin=0)
 plt.subplots_adjust(hspace=0.2)
 plt.show()
 
-plt.figure(2)
-plt.plot(range(len(temp_store)), temp_store)
-plt.title('Temperature')
-plt.show()
-
-plt.figure(3)
-plt.plot(range(len(kappa_store)), kappa_store)
-plt.title(r'$\kappa$', fontsize = 16)
-plt.show()
