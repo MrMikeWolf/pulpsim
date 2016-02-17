@@ -182,13 +182,12 @@ wood_compartment_volume = parameters['wood_volume']/parameters['Ncompartments']
 # Initial conditions
 Nliq0 = numpy.array([0., 0., 1.56, 0.])
 
-
-
 Nwood0 = numpy.zeros((Ncomponents, parameters['Ncompartments']))
 # Lignin & Carbo content
 Nwood0[0, :] = 0.273 # Lignin initial mass fraction
 Nwood0[1, :] = 0.677 # Carbohydrate initial mass fraction
 
+x0 = flatx(Nliq0, Nwood0)
 
 def dxdt(x, t):
     # assert numpy.all(x>=0)
@@ -224,7 +223,7 @@ def dxdt(x, t):
     # mass balance for liquor:
     dNliquordt = -transfer_rate
     # in wood, we change due to diffusion (left and right) and reaction
-    dNwooddt = reaction - diffusion + numpy.roll(diffusion, 1)
+    dNwooddt = reaction #- diffusion + numpy.roll(diffusion, 1)
     # plus the extra flow from liquor
     dNwooddt[:, 0] += transfer_rate
     
