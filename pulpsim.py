@@ -76,25 +76,29 @@ def reaction_rates(C, x, T):
     # The rates for lignin and carbohydrates given in terms of mass fraction
     
     # The sulfur concentration remains constant
-    CS = 1.2
+    CS = 0.18
+    
+    # a Scaling factor is applied to account for the term rho/eps
+    # where rho is the density and eps is the porosity of the wood 
+    SF = 20
 
     if L >= .25:
                    
-        dLdt = (36.2*430**0.5*numpy.exp(-4807.69/430))*L
+        dLdt = (36.2*T**0.5*numpy.exp(-4807.69/T))*L
         dCdt = 2.53*(CA**0.11)*dLdt
-        dCAdt = (-4.78e-3*dLdt + 1.81e-2*dCdt)*1/1        
+        dCAdt = (-4.78e-3*dLdt + 1.81e-2*dCdt)*SF        
               
     elif L >= .025:
         
         dLdt = (numpy.exp(35.19 - 17200/T))*CA*L + (numpy.exp(29.23 - 14400/T))*(CA**0.5)*(CS**0.4)
         dCdt = 0.47*dLdt
-        dCAdt = (-4.78e-3*dLdt + 1.81e-2*dCdt)*1/1
+        dCAdt = (-4.78e-3*dLdt + 1.81e-2*dCdt)*SF
         
     else:
 
         dLdt = (numpy.exp(19.64 - 10804/T))*(CA**0.7)*L
         dCdt = 2.19*dLdt
-        dCAdt = (-4.78e-3*dLdt + 1.81e-2*dCdt)*1/1
+        dCAdt = (-4.78e-3*dLdt + 1.81e-2*dCdt)*SF
     
     return numpy.array([dLdt,
                         dCdt,
@@ -133,8 +137,24 @@ def concentrations(x):
 def temp(t):
     """ Temperature function
     """
-#    T = parameters['Ti'] + t * 0.1
-    T = 420 + t * 0.1
+    
+    # Heating time in minutes
+    th = 120
+    # Starting temperature
+    To = 273 + 100
+    
+    # Gradient at which heat changes degC/min
+    # The gradient is specified such that a temp 
+    # of 170 degC is reached at 'th'
+    m = ((170+273) - To)/120
+    
+    if t <= th:
+        # Heating time
+        T = To + t * m
+    else:
+        # Cooking time
+        T = To + th*m
+    
     return T
 
 
@@ -164,13 +184,16 @@ Ncomponents = len(components)
 S = numpy.array([[-1, 0, 0, 0],
                  [0, -1, 0, 0],
                  [0,  0,-1, 0]]).T
-t_end = 80
+t_end = 250
 
-K = numpy.array([0., 0., 10, 0])  # diffusion constant (mol/(m^2.s))
+K = numpy.array([0., 0., 1., 0])  # diffusion constant (mol/(m^2.s))
 # FIXME: K and D should be specified in a similar way
 def D(T):
+
+    # Apply a scaling factor to the diffusion
+    SFD = 500    
     
-    D_OH = 3.4e-2*(T**0.5)*numpy.exp(-4870/(8.314*T))
+    D_OH = 3.4e-2*(T**0.5)*numpy.exp(-4870/(8.314*T))*SFD
     
     return numpy.array([[0.], [0.], [D_OH], [0.]])
 
@@ -181,7 +204,7 @@ dz = 1./parameters['Ncompartments']
 wood_compartment_volume = parameters['wood_volume']/parameters['Ncompartments']
 
 # Initial conditions
-Nliq0 = numpy.array([0., 0., 1.25, 0.])
+Nliq0 = numpy.array([0., 0., 15., 0.])
 
 Nwood0 = numpy.zeros((Ncomponents, parameters['Ncompartments']))
 # Lignin & Carbo content
@@ -224,7 +247,7 @@ def dxdt(x, t):
     # mass balance for liquor:
     dNliquordt = -transfer_rate
     # in wood, we change due to diffusion (left and right) and reaction
-    dNwooddt = reaction #- diffusion + numpy.roll(diffusion, 1)
+    dNwooddt = reaction - diffusion + numpy.roll(diffusion, 1)
     # plus the extra flow from liquor
     dNwooddt[:, 0] += transfer_rate
     
@@ -254,19 +277,30 @@ print ('Simulation run time: ', time.time() - start_time, 'sec')
 # Concentrations
 ax = None
 cm = plt.get_cmap('cubehelix')
-#for i, component in enumerate(components):
-#    ax = plt.subplot(Ncomponents + 1, 1, i+1, sharex=ax)
-#    plt.setp(ax.get_xticklabels(), visible=False)
-#    plt.pcolormesh(t, zl, numpy.atleast_2d(cl[:, i]), cmap=cm)
-#    plt.pcolormesh(t, z, cw[:, i, :].T, cmap=cm)
-#    plt.ylabel('[{}]'.format(component))
-#
-## Check that we aren't creating or destroying mass
-#plt.subplot(Ncomponents+1, 1, Ncomponents+1, sharex=ax)
-#plt.plot(t, [totalmass(x) for x in xs])
-#plt.ylabel('Total moles')
-#plt.ylim(ymin=0)
-#plt.subplots_adjust(hspace=0.2)
-#plt.show()
 
-plt.plot(t,cw[:,0,])
+plt.figure(1)
+for i, component in enumerate(components):
+    ax = plt.subplot(Ncomponents + 1, 1, i+1, sharex=ax)
+    plt.setp(ax.get_xticklabels(), visible=False)
+    plt.pcolormesh(t, zl, numpy.atleast_2d(cl[:, i]), cmap=cm)
+    plt.pcolormesh(t, z, cw[:, i, :].T, cmap=cm)
+    plt.ylabel('[{}]'.format(component))
+
+# Check that we aren't creating or destroying mass
+plt.subplot(Ncomponents+1, 1, Ncomponents+1, sharex=ax)
+plt.plot(t, [totalmass(x) for x in xs])
+plt.ylabel('Total moles')
+plt.ylim(ymin=0)
+plt.subplots_adjust(hspace=0.2)
+
+plt.figure(2)
+plt.plot(t, cw[:,0,:])
+
+plt.figure(3)
+plt.plot(t, cw[:,2,0])
+
+plt.show()
+
+
+
+
